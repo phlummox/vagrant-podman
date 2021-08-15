@@ -1,6 +1,6 @@
 # vagrant-podman
 
-[![build](https://github.com/phlummox/vagrant-podman/actions/workflows/ci.yml/badge.svg)](https://github.com/phlummox/vagrant-podman/actions/workflows/ci.yml)
+[![build](https://github.com/phlummox/vagrant-podman/actions/workflows/build.yml/badge.svg)](https://github.com/phlummox/vagrant-podman/actions/workflows/build.yml)
 
 A [Vagrant][vagrant] box, based on Alpine 3.14, with
 podman installed. (And also docker, and a few other packages, and an
