@@ -1,0 +1,157 @@
+name: build
+
+on: ["push"]
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    env:
+      PACKER_VERSION: "1.7.0"
+      VAGRANT_VERSION: "2.2.14"
+      GOSS_VERSION: "0.3.16"
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install packer
+      run: |
+        set -euo pipefail
+        set -x
+
+        PACKER_URL="https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip"
+        wget $PACKER_URL
+        unzip packer_${PACKER_VERSION}_linux_amd64.zip
+        sudo mv packer /usr/local/bin
+
+        packer --version
+
+    - name: Install vagrant
+      run: |
+        set -euo pipefail
+        set -x
+
+        VAGRANT_URL="https://releases.hashicorp.com/vagrant/${VAGRANT_VERSION}/vagrant_${VAGRANT_VERSION}_x86_64.deb"
+        dir=`mktemp -d tmp-downloaded-vagrant-deb-XXXXX`
+        curl -L "${VAGRANT_URL}" > $dir/vagrant.deb;
+        sudo apt install $PWD/$dir/vagrant.deb;
+
+    - name: install build dependencies
+      run: |
+        set -euo pipefail
+        set -x
+
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          pv \
+          qemu-kvm \
+          qemu-utils
+
+    - name: run build
+      run: |
+        set -euo pipefail
+        set -x
+
+        make packer-build
+
+    # ## A "mock" build -- just download an artifact and
+    # ## pretend we built it.
+    #- name: run build
+    #  run: |
+    #    set -euo pipefail
+    #    set -x
+
+    #    vpodman_url="https://github.com/phlummox/vagrant-podman"
+    #    mkdir output
+    #    (cd output; wget "$vpodman_url/releases/download/v0.2.x/podman_0.0.1.box")
+
+    - name: install test dependencies
+      run: |
+        set -euo pipefail
+        set -x
+
+        sudo apt install -y --no-install-recommends \
+            gnupg       \
+            libvirt-bin \
+            libvirt-dev
+
+        # install podman
+        . /etc/os-release
+        echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+        curl -L "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key" | sudo apt-key add -
+        sudo apt-get update
+        sudo apt-get -y --no-install-recommends install podman
+
+        sudo systemctl start libvirtd
+        sudo systemctl status libvirtd
+
+        sudo adduser $USER libvirt
+        sudo adduser $USER kvm
+
+        # install vagrant libvirt plugin
+        vinv_url="https://github.com/phlummox/vagrant-in-vagrant"
+        wget "$vinv_url/releases/download/v0.0.1/vagrant.d.tgz"
+        tar xf vagrant.d.tgz -C ~
+
+        # install goss
+        curl -L "https://github.com/aelsabbahy/goss/releases/download/v${GOSS_VERSION}/goss-linux-amd64" -o goss
+        sudo cp ./goss /usr/local/bin/goss
+        sudo chmod +rx /usr/local/bin/goss
+
+    - name: test
+      run: |
+        set -euo pipefail
+        set -x
+
+        # update gids and run tests
+        sudo su -l $USER -c "set -ex; export CI=$CI; cd $PWD; pwd; id; ls -al /var/run/libvirt/libvirt-sock; ./test-vm.sh"
+
+    - name: Extract start of changelog
+      run: |
+        set -euo pipefail
+        set -x
+
+        ./topmost-changelog-sec.sh > release-notes.md
+
+        # show conts
+        grep -n ^ /dev/null release-notes.md
+
+    - name:  Set the release name
+      run: |
+        set -euo pipefail
+        set -x
+
+        release_name=`echo "${{ github.ref }}" | sed 's|^refs/tags/v||'`
+        echo release name is "${release_name}"
+        echo "release_name=${release_name}" >> $GITHUB_ENV
+
+
+    - name:  Show the release name can be read from "env."
+      run: |
+        set -euo pipefail
+        set -x
+
+        echo release name is "${{ env.release_name }}"
+
+    - name: Release (if tagged)
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          output/*
+          vagrant.d.tgz
+        body_path: release-notes.md
+        name: ${{ env.release_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Push to vagrant cloud (if tagged)
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        set -euo pipefail
+        set -x
+
+        ./publish.sh
+      env:
+        VAGRANT_CLOUD_TOKEN: ${{ secrets.VAGRANT_CLOUD_TOKEN }}
+
+# vim: ts=2 sw=2 et :

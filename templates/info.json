@@ -1,0 +1,8 @@
+
+{
+ "Author": "phlummox",
+ "Website": "https://www.phlummox.dev/",
+ "Repository": "https://github.com/phlummox/vagrant-podman",
+ "Configuration": "https://github.com/phlummox/vagrant-podman",
+ "Description": "podman (and docker) installed on Alpine 3.14"
+}

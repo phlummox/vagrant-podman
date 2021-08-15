@@ -1,0 +1,15 @@
+# Cache objects
+packer_cache/
+
+# Crash log
+crash.log
+
+# build artifacts
+*.box
+.ubuntu_checksum.md5
+
+# vim
+.*.swp
+vagrant.d.tgz
+/.vagrant/
+.*.swp

@@ -1,0 +1,14 @@
+#!/sbin/openrc-run
+
+# to install:
+# - cp to /etc/init.d
+# - rc-update add podman-rootless
+# - rc-service podman-rootless {start/stop/restart}
+
+description="podman as a service"
+
+command=podman
+command_args="--log-level=debug system service --time=0 tcp:0.0.0.0:3000"
+command_background=true
+command_user="vagrant:vagrant"
+pidfile="/run/${RC_SVCNAME}.pid"
