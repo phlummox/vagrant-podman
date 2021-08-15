@@ -53,16 +53,14 @@ jobs:
 
         make packer-build
 
-    # ## A "mock" build -- just download an artifact and
-    # ## pretend we built it.
-    #- name: run build
-    #  run: |
-    #    set -euo pipefail
-    #    set -x
-
-    #    vpodman_url="https://github.com/phlummox/vagrant-podman"
-    #    mkdir output
-    #    (cd output; wget "$vpodman_url/releases/download/v0.2.x/podman_0.0.1.box")
+    # TODO: could split build, test and publish workflows, with
+    # latter workflows fetching the build artifacts as needed.
+    - name: store build artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: packer-output
+        path: |
+          output
 
     - name: install test dependencies
       run: |
